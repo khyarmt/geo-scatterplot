@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
+import * as d3 from "d3";
 
-function GeoScatterplotContent({ width, height }) {
+function GeoScatterplotContent({ width, height, data }) {
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
 
@@ -46,6 +47,25 @@ function GeoScatterplotContent({ width, height }) {
     });
   };
 
+  useEffect(() => {
+    if (data) {
+      mapRef.current.on("load", () => {
+        mapRef.current.addSource("data", {
+          type: "geojson",
+          data: data,
+        });
+        mapRef.current.addLayer({
+          id: "data",
+          type: "circle",
+          source: "data",
+          paint: {
+            "circle-color": "#a0d513",
+          },
+        });
+      });
+    }
+  }, [data]);
+
   return (
     <div>
       <div className="sidebar">
@@ -69,7 +89,7 @@ function GeoScatterplotContent({ width, height }) {
   );
 }
 
-function GeoScatterplot() {
+function GeoScatterplot({ data }) {
   const wrapperRef = useRef(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
@@ -89,15 +109,57 @@ function GeoScatterplot() {
 
   return (
     <div ref={wrapperRef} className="geo-scatterplot-wrapper">
-      <GeoScatterplotContent width={size.width} height={size.height} />
+      <GeoScatterplotContent
+        width={size.width}
+        height={size.height}
+        data={data}
+      />
     </div>
   );
 }
 
 function App() {
+  const [data, setData] = useState();
+
+  const csvToGeoJson = (csv) => {
+    const geoJson = {};
+    geoJson.type = "FeatureCollection";
+    const features = csv.map((item) => {
+      return {
+        type: "Feature",
+        properties: {
+          id: item.id,
+          airportName: item.airportName,
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [item.lng, item.lat],
+        },
+      };
+    });
+    geoJson.features = features;
+
+    return geoJson;
+  };
+
+  useEffect(() => {
+    (async () => {
+      const response = await fetch("data/airports.csv");
+      const data = d3.csvParse(await response.text(), (d) => {
+        return {
+          id: Number(d.OBJECTID),
+          airportName: d.C28_005,
+          lng: Number(d.X),
+          lat: Number(d.Y),
+        };
+      });
+      setData(csvToGeoJson(data));
+    })();
+  }, []);
+
   return (
     <div>
-      <GeoScatterplot />
+      <GeoScatterplot data={data} />
     </div>
   );
 }
