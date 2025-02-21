@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
+import * as d3 from "d3";
 
-const initialCenter = [-74.0242, 40.6941];
-const initialZoom = 10.12;
-
-function GeoScatterplotContent({ width, height }) {
+function GeoScatterplotContent({ width, height, data }) {
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
+  const initialCenter = [-74.0242, 40.6941];
+  const initialZoom = 10.12;
   const [center, setCenter] = useState(initialCenter);
   const [zoom, setZoom] = useState(initialZoom);
 
@@ -15,6 +15,7 @@ function GeoScatterplotContent({ width, height }) {
       "pk.eyJ1Ijoia2h5YXJtdCIsImEiOiJjbGh5ODIxbWYwcmN3M2xwaWRtb3A1Z25iIn0.aLNbg04hNzdx-664l2P9Yw";
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
+      style: "mapbox://styles/mapbox/dark-v11",
       center: center,
       zoom: zoom,
     });
@@ -40,6 +41,27 @@ function GeoScatterplotContent({ width, height }) {
       zoom: initialZoom,
     });
   };
+
+  useEffect(() => {
+    if (data) {
+      console.log(data);
+      mapRef.current.on("load", () => {
+        mapRef.current.addSource("cities", {
+          type: "geojson",
+          data: data,
+        });
+        mapRef.current.addLayer({
+          id: "data",
+          type: "circle",
+          source: "cities",
+          paint: {
+            "circle-color": "#C9FFFF",
+            "circle-radius": 3,
+          },
+        });
+      });
+    }
+  }, [data]);
 
   return (
     <div>
@@ -79,7 +101,7 @@ function GeoScatterplotContent({ width, height }) {
   );
 }
 
-function GeoScatterplot() {
+function GeoScatterplot({ data }) {
   const wrapperRef = useRef(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   useEffect(() => {
@@ -101,15 +123,63 @@ function GeoScatterplot() {
       ref={wrapperRef}
       style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0 }}
     >
-      <GeoScatterplotContent width={size.width} height={size.height} />
+      <GeoScatterplotContent
+        width={size.width}
+        height={size.height}
+        data={data}
+      />
     </div>
   );
 }
 
 function App() {
+  const [data, setData] = useState(null);
+  const arrayToGeoJson = (array) => {
+    const geoJson = {};
+    geoJson.type = "FeatureCollection";
+    const features = array.map((item) => {
+      const properties = Object.assign({}, item);
+      delete properties.lng;
+      delete properties.lat;
+      return {
+        type: "Feature",
+        properties: properties,
+        geometry: {
+          type: "Point",
+          coordinates: [item.lng, item.lat],
+        },
+      };
+    });
+    geoJson.features = features;
+
+    return geoJson;
+  };
+
+  useEffect(() => {
+    (async () => {
+      const response = await fetch("data/cities.csv");
+      const array = d3.csvParse(await response.text(), (d) => {
+        return {
+          id: Number(d.id),
+          name: d.name,
+          stateId: Number(d.state_id),
+          stateCode: d.state_code,
+          stateName: d.state_name,
+          countryId: Number(d.country_id),
+          countryCode: d.country_code,
+          countryName: d.country_name,
+          lng: Number(d.longitude),
+          lat: Number(d.latitude),
+          wikiDataId: d.wikiDataId,
+        };
+      });
+      setData(arrayToGeoJson(array));
+    })();
+  }, []);
+
   return (
     <div>
-      <GeoScatterplot />
+      <GeoScatterplot data={data} />
     </div>
   );
 }
