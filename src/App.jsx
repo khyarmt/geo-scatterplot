@@ -14,8 +14,9 @@ function GeoScatterplotContent({ width, height }) {
     mapboxgl.accessToken = "";
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
-      center: [-74.0242, 40.6941],
-      zoom: 10.12,
+      style: "mapbox://styles/mapbox/dark-v11",
+      center: [center[0], center[1]],
+      zoom: zoom,
     });
 
     mapRef.current.on("move", () => {
