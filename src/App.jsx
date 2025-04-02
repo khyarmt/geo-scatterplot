@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
+import * as d3 from "d3";
 
 const initialCenter = [-74.0242, 40.6941];
 const initialZoom = 10.12;
 
-function GeoScatterplotContent({ width, height }) {
+function GeoScatterplotContent({ width, height, data }) {
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
   const [center, setCenter] = useState(initialCenter);
   const [zoom, setZoom] = useState(initialZoom);
 
   useEffect(() => {
-    mapboxgl.accessToken = "";
+    mapboxgl.accessToken =
+      "pk.eyJ1Ijoia2h5YXJtdCIsImEiOiJjbGh5ODIxbWYwcmN3M2xwaWRtb3A1Z25iIn0.aLNbg04hNzdx-664l2P9Yw";
     mapRef.current = new mapboxgl.Map({
       container: mapContainerRef.current,
       style: "mapbox://styles/mapbox/dark-v11",
@@ -31,6 +33,24 @@ function GeoScatterplotContent({ width, height }) {
       mapRef.current.remove();
     };
   }, []);
+
+  useEffect(() => {
+    mapRef.current.on("load", () => {
+      mapRef.current.addSource("cities", {
+        type: "geojson",
+        data: data,
+      });
+      mapRef.current.addLayer({
+        id: "data",
+        type: "circle",
+        source: "cities",
+        paint: {
+          "circle-color": "#C9FFFF",
+          "circle-radius": 3,
+        },
+      });
+    });
+  }, [data]);
 
   const handleButtonClick = () => {
     mapRef.current.flyTo({
@@ -79,7 +99,7 @@ function GeoScatterplotContent({ width, height }) {
   );
 }
 
-function GeoScatterplot() {
+function GeoScatterplot({ data }) {
   const wrapperRef = useRef(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
@@ -99,17 +119,62 @@ function GeoScatterplot() {
 
   return (
     <div ref={wrapperRef} className="geo-scatterplot-wrapper">
-      <GeoScatterplotContent width={size.width} height={size.height} />
+      <GeoScatterplotContent
+        width={size.width}
+        height={size.height}
+        data={data}
+      />
     </div>
   );
 }
 
 function App() {
-  return (
-    <div>
-      <GeoScatterplot />
-    </div>
-  );
+  const [data, setData] = useState();
+
+  const csvToGeoJson = (csvData) => {
+    const geoJsonData = {};
+    geoJsonData.type = "FeatureCollection";
+    const features = csvData.map((item) => {
+      return {
+        type: "Feature",
+        properties: {
+          id: item.id,
+          name: item.name,
+          stateId: item.state_id,
+          stateCode: item.state_code,
+          countryId: item.country_id,
+          countryCode: item.country_code,
+          countryName: item.country_name,
+          wikiDataId: item.wikiDataId,
+        },
+        geometry: {
+          type: "Point",
+          coordinates: [item.longitude, item.latitude],
+        },
+      };
+    });
+    geoJsonData.features = features;
+
+    return geoJsonData;
+  };
+
+  useEffect(() => {
+    (async () => {
+      const response = await fetch("data/cities.csv");
+      const data = d3.csvParse(await response.text());
+      for (const item of data) {
+        item.id = Number(item.id);
+        item.state_id = Number(item.state_id);
+        item.country_id = Number(item.country_id);
+        item.latitude = Number(item.latitude);
+        item.longitude = Number(item.longitude);
+      }
+
+      setData(csvToGeoJson(data));
+    })();
+  }, []);
+
+  return <div>{data && <GeoScatterplot data={data} />}</div>;
 }
 
 export default App;
