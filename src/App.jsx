@@ -5,6 +5,8 @@ function GeoScatterplotContent({ width, height }) {
   const mapRef = useRef();
   const mapContainerRef = useRef();
 
+  console.log(import.meta.env.VITE_MAPBOX_ACCESS_TOKEN);
+
   useEffect(() => {
     mapboxgl.accessToken = "";
   }, []);
@@ -15,7 +17,7 @@ function GeoScatterplotContent({ width, height }) {
         position: "absolute",
         top: 0,
         right: 0,
-        height: 0,
+        bottom: 0,
         left: 0,
         width: width,
         height: height,
