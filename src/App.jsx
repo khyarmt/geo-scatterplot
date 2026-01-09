@@ -5,11 +5,22 @@ function GeoScatterplotContent({ width, height }) {
   const mapRef = useRef();
   const mapContainerRef = useRef();
 
-  console.log(import.meta.env.VITE_MAPBOX_ACCESS_TOKEN);
+  const mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+  console.log(mapboxAccessToken);
 
   useEffect(() => {
-    mapboxgl.accessToken = "";
+    mapboxgl.accessToken = mapboxAccessToken;
+    mapRef.current = new mapboxgl.Map({
+      container: mapContainerRef.current,
+    });
+    return () => {
+      mapRef.current.remove();
+    };
   }, []);
+
+  useEffect(() => {
+    mapRef.current.resize();
+  });
 
   return (
     <div
